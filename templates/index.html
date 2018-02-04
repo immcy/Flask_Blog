@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{name}}{% endblock%}
+
+{%block head%}{{super()}}{%endblock%}
+
+{%block body%}
+{% if name=='immcy'%}
+welcome{{name}}<h1>这个站点的名字是{{name}}的小站</h1>
+{%else%}
+welcome{{name}}<h1>Login!</h1>
+{% endif%}
+{%endblock%}
