@@ -12,21 +12,44 @@ pymysql.install_as_MySQLdb()  # 囧
 from flask_migrate import Migrate, MigrateCommand
 from models import User
 
+import logging
+from logging.handlers import RotatingFileHandler
+from flask_sqlalchemy import get_debug_queries
+
+
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'key'
 app.config["SQLALCHEMY_DATABASE_URI"] = 'mysql://root:5@localhost/web'
 app.config["SQLALCHEMY_COMMIT_ON_TEARDOWN"] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+app.config['DATABASE_QUERY_TIMEOUT'] = 0.0001
+app.config['SQLALCHEMY_RECORD_QUERIES'] = True
+
 
 bootstrap = Bootstrap(app)
 db.init_app(app)     # 推荐用法是这样初始化哦 把导入的包放到ext中 还解决了循环依赖问题
 manager = Manager(app)
 migrate = Migrate(app, db)  # 配置迁移
 
-
 manager.add_command("db", MigrateCommand)  # 配置迁移命令
 
+formatter = logging.Formatter(
+    "[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
+handler = RotatingFileHandler('slow_query.log', maxBytes=10000, backupCount=10)  # 参数不是很懂哈
+handler.setLevel(logging.WARN)
+handler.setFormatter(formatter)
+app.logger.addHandler(handler)
+
+@app.after_request
+def after_request(response):
+    for query in get_debug_queries():
+        if query.duration >= app.config['DATABASE_QUERY_TIMEOUT']:
+            app.logger.warn(('\nContext:{}\nSLOW QUERY: {}\nParameters: {}\n'
+                 'Duration: {}\n').format(query.context, query.statement,
+                                          query.parameters, query.duration))
+    return response
 
 @app.route('/')
 def index():
